@@ -1,0 +1,894 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            image-rendering: pixelated;
+        }
+
+        body {
+            background: #808080;
+            overflow: hidden;
+            font-family: 'Geneva', 'Chicago', 'Charcoal', monospace;
+        }
+
+        .desktop {
+            width: 100vw;
+            height: 100vh;
+            background:
+                repeating-conic-gradient(#a8a8a8 0% 25%, #c0c0c0 0% 50%) 0 0 / 4px 4px;
+            position: relative;
+        }
+
+        .window {
+            background: #ffffff;
+            border: 2px solid #000000;
+            box-shadow: 2px 2px 0px #000000;
+            width: 260px;
+            position: absolute;
+            user-select: none;
+            z-index: 10;
+        }
+
+        /* Title bar */
+        .title-bar {
+            background: #ffffff;
+            border-bottom: 2px solid #000000;
+            height: 22px;
+            display: flex;
+            align-items: center;
+            padding: 0 4px;
+            cursor: default;
+            position: relative;
+        }
+
+        .title-bar::after {
+            content: '';
+            position: absolute;
+            top: 4px;
+            left: 24px;
+            right: 24px;
+            height: 14px;
+            background:
+                repeating-linear-gradient(transparent 0px, transparent 1px,
+                    #ffffff 1px, #ffffff 2px,
+                    #000000 2px, #000000 3px,
+                    #ffffff 3px, #ffffff 4px);
+            z-index: 0;
+        }
+
+        .close-box {
+            width: 13px;
+            height: 13px;
+            border: 1.5px solid #000000;
+            background: #ffffff;
+            z-index: 1;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        .close-box:active {
+            background: #000000;
+        }
+
+        .title-text {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 13px;
+            font-weight: bold;
+            letter-spacing: 0.5px;
+            z-index: 1;
+            background: #ffffff;
+            padding: 0 8px;
+            white-space: nowrap;
+        }
+
+        .calc-body {
+            padding: 12px 14px 14px 14px;
+        }
+
+        .display-frame {
+            border: 2px solid #000000;
+            background: #ffffff;
+            margin-bottom: 10px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding: 0 8px;
+            overflow: hidden;
+        }
+
+        .display {
+            font-size: 18px;
+            font-family: 'Geneva', 'Chicago', monospace;
+            letter-spacing: 1px;
+            color: #000000;
+            text-align: right;
+            white-space: nowrap;
+        }
+
+        .btn-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 6px;
+        }
+
+        .btn {
+            height: 30px;
+            border: 2px solid #000000;
+            background: #ffffff;
+            font-family: 'Geneva', 'Chicago', monospace;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            box-shadow: 1px 1px 0px #000000;
+            transition: none;
+        }
+
+        .btn:active,
+        .btn.active {
+            background: #000000;
+            color: #ffffff;
+            box-shadow: none;
+            transform: translate(1px, 1px);
+        }
+
+        .btn-zero {
+            grid-column: span 2;
+        }
+
+        .btn-enter {
+            grid-row: span 2;
+            height: calc(60px + 6px);
+        }
+
+        .btn-pattern {
+            background: repeating-conic-gradient(#000 0% 25%, #fff 0% 50%) 0 0 / 2px 2px;
+            color: #ffffff;
+            text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
+        }
+
+        .btn-pattern:active,
+        .btn-pattern.active {
+            background: repeating-conic-gradient(#fff 0% 25%, #000 0% 50%) 0 0 / 2px 2px;
+            color: #000000;
+            text-shadow: -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff, 1px 1px 0 #fff;
+        }
+
+        .btn:focus {
+            outline: 1px dotted #000;
+            outline-offset: -4px;
+        }
+
+        /* ---- Question banner ---- */
+        .question-banner {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-family: 'Geneva', 'Chicago', monospace;
+            font-size: 48px;
+            font-weight: bold;
+            color: #000;
+            background: #fff;
+            border: 3px solid #000;
+            padding: 18px 40px;
+            z-index: 200;
+            box-shadow: 4px 4px 0 #000;
+            white-space: nowrap;
+            text-align: center;
+            display: none;
+            transition: top 0.6s ease-in-out, left 0.6s ease-in-out,
+                transform 0.6s ease-in-out, font-size 0.6s ease-in-out,
+                padding 0.6s ease-in-out;
+        }
+
+        .question-banner.minimized {
+            top: 14px;
+            left: 14px;
+            transform: translate(0, 0);
+            font-size: 18px;
+            padding: 8px 16px;
+        }
+
+        .question-banner .sub {
+            font-size: 14px;
+            margin-top: 6px;
+            color: #555;
+            transition: font-size 0.6s ease-in-out;
+        }
+
+        .question-banner.minimized .sub {
+            font-size: 10px;
+            margin-top: 3px;
+        }
+
+        /* ---- HUD ---- */
+        .hud {
+            position: fixed;
+            top: 10px;
+            right: 14px;
+            font-family: 'Geneva', 'Chicago', monospace;
+            font-size: 13px;
+            color: #000;
+            background: #fff;
+            border: 2px solid #000;
+            padding: 6px 12px;
+            z-index: 100;
+            box-shadow: 2px 2px 0 #000;
+            line-height: 1.6;
+            display: none;
+        }
+
+        .taunt {
+            position: fixed;
+            bottom: 14px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-family: 'Geneva', 'Chicago', monospace;
+            font-size: 13px;
+            color: #000;
+            background: #fff;
+            border: 2px solid #000;
+            padding: 6px 14px;
+            z-index: 100;
+            box-shadow: 2px 2px 0 #000;
+            white-space: nowrap;
+            display: none;
+        }
+
+        /* ---- Start message ---- */
+        .start-msg {
+            position: fixed;
+            bottom: 14px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-family: 'Geneva', 'Chicago', monospace;
+            font-size: 14px;
+            color: #000;
+            background: #fff;
+            border: 2px solid #000;
+            padding: 8px 16px;
+            z-index: 100;
+            box-shadow: 2px 2px 0 #000;
+            white-space: nowrap;
+        }
+
+        /* ---- Effects ---- */
+        .speed-lines {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none;
+            z-index: 5;
+            overflow: hidden;
+        }
+
+        .speed-line {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.15);
+            height: 2px;
+            animation: speedLineFade 0.3s linear forwards;
+        }
+
+        @keyframes speedLineFade {
+            to {
+                opacity: 0;
+            }
+        }
+
+        @keyframes bounceShake {
+            0% {
+                filter: none;
+            }
+
+            25% {
+                filter: invert(1);
+            }
+
+            50% {
+                filter: none;
+            }
+
+            75% {
+                filter: invert(1);
+            }
+
+            100% {
+                filter: none;
+            }
+        }
+
+        .window.bouncing {
+            animation: bounceShake 0.15s linear;
+        }
+
+        .wall-flash {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none;
+            z-index: 999;
+            animation: wallFlash 0.15s ease-out forwards;
+        }
+
+        @keyframes wallFlash {
+            0% {
+                background: rgba(255, 255, 255, 0.5);
+            }
+
+            100% {
+                background: rgba(255, 255, 255, 0);
+            }
+        }
+
+        /* ---- Clear screen ---- */
+        .clear-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.7);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 5000;
+            flex-direction: column;
+        }
+
+        .clear-overlay.show {
+            display: flex;
+        }
+
+        .clear-box {
+            background: #fff;
+            border: 3px solid #000;
+            padding: 40px 60px;
+            box-shadow: 6px 6px 0 #000;
+            text-align: center;
+            font-family: 'Geneva', 'Chicago', monospace;
+        }
+
+        .clear-box h1 {
+            font-size: 48px;
+            margin-bottom: 10px;
+        }
+
+        .clear-box .clear-sub {
+            font-size: 16px;
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        .clear-box .clear-stats {
+            font-size: 13px;
+            color: #666;
+            line-height: 1.8;
+        }
+
+        .clear-box button {
+            margin-top: 20px;
+            font-family: 'Geneva', 'Chicago', monospace;
+            font-size: 14px;
+            font-weight: bold;
+            padding: 8px 24px;
+            border: 2px solid #000;
+            background: #fff;
+            cursor: pointer;
+            box-shadow: 2px 2px 0 #000;
+        }
+
+        .clear-box button:active {
+            background: #000;
+            color: #fff;
+            box-shadow: none;
+            transform: translate(2px, 2px);
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="desktop" id="desktop">
+        <div class="window" id="calcWindow">
+            <div class="title-bar" id="titleBar">
+                <div class="close-box" id="closeBox"></div>
+                <span class="title-text">Calculator</span>
+            </div>
+            <div class="calc-body">
+                <div class="display-frame">
+                    <span class="display" id="display">0</span>
+                </div>
+                <div class="btn-grid">
+                    <button class="btn" data-action="clear">C</button>
+                    <button class="btn" data-action="backspace">E</button>
+                    <button class="btn" data-action="equals">=</button>
+                    <button class="btn btn-pattern" data-action="op" data-op="*">*</button>
+                    <button class="btn" data-action="digit" data-val="7">7</button>
+                    <button class="btn" data-action="digit" data-val="8">8</button>
+                    <button class="btn" data-action="digit" data-val="9">9</button>
+                    <button class="btn btn-pattern" data-action="op" data-op="/">/</button>
+                    <button class="btn" data-action="digit" data-val="4">4</button>
+                    <button class="btn" data-action="digit" data-val="5">5</button>
+                    <button class="btn" data-action="digit" data-val="6">6</button>
+                    <button class="btn btn-pattern" data-action="op" data-op="-">&minus;</button>
+                    <button class="btn" data-action="digit" data-val="1">1</button>
+                    <button class="btn" data-action="digit" data-val="2">2</button>
+                    <button class="btn" data-action="digit" data-val="3">3</button>
+                    <button class="btn btn-pattern btn-enter" data-action="op" data-op="+">+</button>
+                    <button class="btn btn-zero" data-action="digit" data-val="0">0</button>
+                    <button class="btn" data-action="dot">.</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="question-banner" id="questionBanner">
+        <span id="questionText"></span>
+        <div class="sub">電卓で正解を入力して ＝ を押せ！</div>
+    </div>
+    <div class="hud" id="hud"></div>
+    <div class="taunt" id="taunt"></div>
+    <div class="start-msg" id="startMsg">どれかボタンを押すとゲーム開始！</div>
+    <div class="speed-lines" id="speedLines"></div>
+
+    <div class="clear-overlay" id="clearOverlay">
+        <div class="clear-box">
+            <h1>CLEAR!</h1>
+            <div class="clear-sub" id="clearSub"></div>
+            <div class="clear-stats" id="clearStats"></div>
+            <button id="retryBtn">もう一回</button>
+        </div>
+    </div>
+
+    <script>
+        // ============================================================
+        //  Calculator Engine (Lean 4 spec)
+        // ============================================================
+        const BinOp = Object.freeze({ Add: '+', Sub: '-', Mul: '*', Div: '/' });
+        function evalOp(op, a, b) { switch (op) { case BinOp.Add: return a + b; case BinOp.Sub: return a - b; case BinOp.Mul: return a * b; case BinOp.Div: return b === 0 ? 0 : a / b; default: return 0; } }
+        function mkCalcState() { return { display: '0', accumulator: 0, pendingOp: null, resetNext: false }; }
+        function formatNumber(n) { if (!isFinite(n)) return 'E'; const s = String(n); if (s.length > 12) { const f = n.toFixed(8); if (f.length <= 12) return f.replace(/\.?0+$/, ''); return n.toExponential(4); } return s; }
+        function inputDigit(st, d) { const s = { ...st }; if (s.resetNext) { s.display = d; s.resetNext = false; } else { s.display = s.display === '0' ? d : s.display + d; } return s; }
+        function inputDot(st) { const s = { ...st }; if (s.resetNext) { s.display = '0.'; s.resetNext = false; } else if (!s.display.includes('.')) s.display += '.'; return s; }
+        function performOp(st) { const s = { ...st }; const cur = parseFloat(s.display); if (s.pendingOp !== null) { const r = evalOp(s.pendingOp, s.accumulator, cur); s.accumulator = r; s.display = formatNumber(r); } else { s.accumulator = cur; } return s; }
+        function applyOp(st, op) { let s = performOp(st); s.pendingOp = op; s.resetNext = true; return s; }
+        function applyEquals(st) { let s = performOp(st); s.pendingOp = null; s.resetNext = true; return s; }
+        function applyClear() { return mkCalcState(); }
+        function applyBackspace(st) { const s = { ...st }; s.display = s.display.length > 1 ? s.display.slice(0, -1) : '0'; return s; }
+
+        // ============================================================
+        //  Game State
+        // ============================================================
+        const PHASE_IDLE = 0;    // 最初：普通の電卓
+        const PHASE_PLAYING = 1; // 動き出してる
+        const PHASE_CLEAR = 2;   // クリア済み
+
+        let gamePhase = PHASE_IDLE;
+        let firstPress = false;   // 最初の1回押したか
+
+        // Question system
+        let currentQuestion = null; // { text, answer }
+        let questionLevel = 1;
+        let questionsCleared = 0;
+        const QUESTIONS_TO_WIN = 5;
+        let questionTimer = null;
+
+        let startTime = 0;
+        let bounceCount = 0;
+
+        function generateQuestion(level) {
+            let a, b, op, opStr, answer;
+
+            if (level <= 2) {
+                // 足し算・引き算 (小さい数)
+                a = randInt(2, 30);
+                b = randInt(2, 30);
+                if (Math.random() < 0.5) {
+                    op = '+'; answer = a + b;
+                } else {
+                    if (a < b) [a, b] = [b, a]; // 正の結果にする
+                    op = '-'; answer = a - b;
+                }
+                opStr = op === '+' ? '+' : '−';
+            } else if (level <= 4) {
+                // 掛け算
+                a = randInt(2, 12);
+                b = randInt(2, 12);
+                op = '*'; answer = a * b;
+                opStr = '×';
+            } else {
+                // 複合: 掛け算＋足し算 or 大きい掛け算
+                if (Math.random() < 0.5) {
+                    a = randInt(10, 50);
+                    b = randInt(2, 9);
+                    op = '*'; answer = a * b;
+                    opStr = '×';
+                } else {
+                    a = randInt(100, 500);
+                    b = randInt(100, 500);
+                    if (Math.random() < 0.5) {
+                        op = '+'; answer = a + b; opStr = '+';
+                    } else {
+                        if (a < b) [a, b] = [b, a];
+                        op = '-'; answer = a - b; opStr = '−';
+                    }
+                }
+            }
+
+            return { text: `${a} ${opStr} ${b} = ?`, answer: answer };
+        }
+
+        function randInt(min, max) {
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
+
+        // ============================================================
+        //  UI
+        // ============================================================
+        let calcState = mkCalcState();
+        const displayEl = document.getElementById('display');
+        const opMap = { '+': BinOp.Add, '-': BinOp.Sub, '*': BinOp.Mul, '/': BinOp.Div };
+        const win = document.getElementById('calcWindow');
+        const questionBanner = document.getElementById('questionBanner');
+        const questionText = document.getElementById('questionText');
+        const hudEl = document.getElementById('hud');
+        const tauntEl = document.getElementById('taunt');
+        const startMsgEl = document.getElementById('startMsg');
+        const speedLinesEl = document.getElementById('speedLines');
+        const clearOverlay = document.getElementById('clearOverlay');
+        const clearSub = document.getElementById('clearSub');
+        const clearStats = document.getElementById('clearStats');
+        const retryBtn = document.getElementById('retryBtn');
+
+        const W = 260;
+        let H = 0;
+
+        function updateDisplay() { displayEl.textContent = calcState.display; }
+
+        function updateHud() {
+            hudEl.innerHTML =
+                `問題: ${questionsCleared} / ${QUESTIONS_TO_WIN}<br>` +
+                `Level: ${questionLevel}<br>` +
+                `Bounces: ${bounceCount}`;
+        }
+
+        function showQuestion() {
+            currentQuestion = generateQuestion(questionLevel);
+            questionText.textContent = currentQuestion.text;
+            questionBanner.style.display = 'block';
+            questionBanner.classList.remove('minimized');
+            updateHud();
+
+            // 5秒後に左上に移動
+            if (questionTimer) clearTimeout(questionTimer);
+            questionTimer = setTimeout(() => {
+                questionBanner.classList.add('minimized');
+            }, 5000);
+        }
+
+        function checkAnswer() {
+            if (!currentQuestion || gamePhase !== PHASE_PLAYING) return;
+            const userAnswer = parseFloat(calcState.display);
+            if (userAnswer === currentQuestion.answer) {
+                // 正解！
+                questionsCleared++;
+                questionLevel++;
+                calcState = mkCalcState();
+                updateDisplay();
+
+                if (questionsCleared >= QUESTIONS_TO_WIN) {
+                    // ゲームクリア！
+                    gameClear();
+                } else {
+                    // 次の問題
+                    showTaunt('正解！次の問題...');
+                    setTimeout(showQuestion, 800);
+                    questionBanner.style.display = 'none';
+                }
+                updateHud();
+            } else {
+                // 不正解
+                showTaunt('ブッブー！不正解！');
+                win.classList.remove('bouncing');
+                void win.offsetWidth;
+                win.classList.add('bouncing');
+            }
+        }
+
+        function gameClear() {
+            gamePhase = PHASE_CLEAR;
+            const elapsed = ((performance.now() - startTime) / 1000).toFixed(1);
+            if (questionTimer) clearTimeout(questionTimer);
+            questionBanner.style.display = 'none';
+            questionBanner.classList.remove('minimized');
+            hudEl.style.display = 'none';
+            tauntEl.style.display = 'none';
+
+            clearSub.textContent = `${QUESTIONS_TO_WIN}問 全問正解！`;
+            clearStats.innerHTML =
+                `クリアタイム: ${elapsed}秒<br>` +
+                `バウンス回数: ${bounceCount}`;
+            clearOverlay.classList.add('show');
+        }
+
+        function startGame() {
+            if (firstPress) return;
+            firstPress = true;
+            startMsgEl.style.display = 'none';
+
+            // 少し間を置いて動き出す
+            setTimeout(() => {
+                gamePhase = PHASE_PLAYING;
+                startTime = performance.now();
+                hudEl.style.display = 'block';
+                tauntEl.style.display = 'block';
+                showTaunt('動き出したぞ！捕まえろ！');
+                showQuestion();
+                startBounce();
+            }, 300);
+        }
+
+        function resetGame() {
+            clearOverlay.classList.remove('show');
+            gamePhase = PHASE_IDLE;
+            firstPress = false;
+            questionsCleared = 0;
+            questionLevel = 1;
+            bounceCount = 0;
+            calcState = mkCalcState();
+            updateDisplay();
+
+            // 中央に戻す
+            posX = (window.innerWidth - W) / 2;
+            posY = (window.innerHeight - win.offsetHeight) / 2;
+            win.style.left = posX + 'px';
+            win.style.top = posY + 'px';
+            win.style.transform = 'none';
+
+            hudEl.style.display = 'none';
+            tauntEl.style.display = 'none';
+            questionBanner.style.display = 'none';
+            startMsgEl.style.display = 'block';
+            animating = false;
+        }
+
+        retryBtn.addEventListener('click', resetGame);
+
+        // ============================================================
+        //  Button handlers
+        // ============================================================
+        document.querySelectorAll('.btn').forEach(btn => {
+            btn.addEventListener('mousedown', e => {
+                e.stopPropagation();
+                if (gamePhase === PHASE_CLEAR) return;
+
+                if (gamePhase === PHASE_IDLE) startGame();
+
+                const action = btn.dataset.action;
+                handleAction(action, btn.dataset);
+            });
+        });
+
+        function handleAction(action, data) {
+            switch (action) {
+                case 'digit': calcState = inputDigit(calcState, data.val); break;
+                case 'dot': calcState = inputDot(calcState); break;
+                case 'op': calcState = applyOp(calcState, opMap[data.op]); break;
+                case 'equals':
+                    calcState = applyEquals(calcState);
+                    updateDisplay();
+                    checkAnswer();
+                    return;
+                case 'clear': calcState = applyClear(); break;
+                case 'backspace': calcState = applyBackspace(calcState); break;
+            }
+            updateDisplay();
+        }
+
+        document.addEventListener('keydown', e => {
+            if (gamePhase === PHASE_CLEAR) return;
+            const k = e.key;
+            if (gamePhase === PHASE_IDLE && (k >= '0' && k <= '9')) startGame();
+
+            if (k >= '0' && k <= '9') handleAction('digit', { val: k });
+            else if (k === '.') handleAction('dot', {});
+            else if (k === '+') handleAction('op', { op: '+' });
+            else if (k === '-') handleAction('op', { op: '-' });
+            else if (k === '*') handleAction('op', { op: '*' });
+            else if (k === '/') { e.preventDefault(); handleAction('op', { op: '/' }); }
+            else if (k === 'Enter' || k === '=') handleAction('equals', {});
+            else if (k === 'Escape') handleAction('clear', {});
+            else if (k === 'Backspace') handleAction('backspace', {});
+        });
+
+        // ============================================================
+        //  Taunts
+        // ============================================================
+        const taunts = [
+            '押せるもんなら押してみな！', 'こっちだよ〜', '遅いな〜',
+            'もうちょっと！...嘘だけど', '当たらないよ〜', 'ハハハ！',
+            '無理無理〜', 'マウスが遅すぎる！', '諦めたら？',
+            'もっと速く！', '全然だめだね〜', '残念！',
+            'ぐるぐる〜', '捕まえてごらん！', '計算も合ってないよ？',
+            '脳トレになるね〜', '集中！集中！',
+        ];
+
+        function showTaunt(msg) {
+            tauntEl.textContent = msg || taunts[Math.floor(Math.random() * taunts.length)];
+        }
+
+        // ============================================================
+        //  Bounce Physics
+        // ============================================================
+        let posX, posY;
+        let velX = 1.5, velY = 1.0;
+        let speedMultiplier = 0.5;
+        let rotAngle = 0, rotVel = 0;
+        let mouseX = -9999, mouseY = -9999;
+        let animating = false;
+        let lastTime = 0;
+        let gameTime = 0;
+
+        // 初期位置: 中央
+        requestAnimationFrame(() => {
+            H = win.offsetHeight;
+            posX = (window.innerWidth - W) / 2;
+            posY = (window.innerHeight - H) / 2;
+            win.style.left = posX + 'px';
+            win.style.top = posY + 'px';
+        });
+
+        document.addEventListener('mousemove', e => {
+            mouseX = e.clientX;
+            mouseY = e.clientY;
+        });
+
+        function flashWall() {
+            const el = document.createElement('div');
+            el.className = 'wall-flash';
+            document.body.appendChild(el);
+            setTimeout(() => el.remove(), 200);
+        }
+
+        function addSpeedLine(x, y, angle) {
+            const line = document.createElement('div');
+            line.className = 'speed-line';
+            line.style.width = (30 + Math.random() * 60) + 'px';
+            line.style.left = x + 'px';
+            line.style.top = y + 'px';
+            line.style.transform = `rotate(${angle}rad)`;
+            speedLinesEl.appendChild(line);
+            setTimeout(() => line.remove(), 300);
+        }
+
+        function startBounce() {
+            if (animating) return;
+            animating = true;
+            // ランダムな方向で発射
+            const angle = Math.random() * Math.PI * 2;
+            velX = Math.cos(angle) * 2;
+            velY = Math.sin(angle) * 2;
+            lastTime = performance.now();
+            gameTime = 0;
+            requestAnimationFrame(animate);
+        }
+
+        function animate(now) {
+            if (!animating || gamePhase !== PHASE_PLAYING) return;
+
+            const dt = Math.min((now - lastTime) / 16.667, 3);
+            lastTime = now;
+            gameTime += dt * 16.667;
+
+            // レベルに応じてスピードアップ
+            speedMultiplier = 0.5 + (questionLevel - 1) * 0.15 + gameTime / 120000 * 0.3;
+            speedMultiplier = Math.min(speedMultiplier, 2.5);
+
+            H = win.offsetHeight;
+            const vw = window.innerWidth;
+            const vh = window.innerHeight;
+
+            // マウスから逃げる
+            const cx = posX + W / 2, cy = posY + H / 2;
+            const dx = cx - mouseX, dy = cy - mouseY;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < 180 && dist > 0) {
+                const flee = (1 - dist / 180) * 3 * speedMultiplier;
+                velX += (dx / dist) * flee * dt * 0.1;
+                velY += (dy / dist) * flee * dt * 0.1;
+            }
+
+            // 速度制限
+            const spd = Math.sqrt(velX * velX + velY * velY);
+            const maxSpd = 3 * speedMultiplier;
+            const minSpd = 0.8 * speedMultiplier;
+            if (spd > maxSpd) { velX = (velX / spd) * maxSpd; velY = (velY / spd) * maxSpd; }
+            else if (spd < minSpd && spd > 0) { velX = (velX / spd) * minSpd; velY = (velY / spd) * minSpd; }
+
+            posX += velX * dt * speedMultiplier;
+            posY += velY * dt * speedMultiplier;
+
+            // 壁で跳ね返り
+            let bounced = false;
+            if (posX <= 0) {
+                posX = 0; velX = Math.abs(velX) * (0.9 + Math.random() * 0.3);
+                velY += (Math.random() - 0.5) * 2; bounced = true; rotVel += (Math.random() - 0.5) * 0.3;
+            }
+            if (posX + W >= vw) {
+                posX = vw - W; velX = -Math.abs(velX) * (0.9 + Math.random() * 0.3);
+                velY += (Math.random() - 0.5) * 2; bounced = true; rotVel += (Math.random() - 0.5) * 0.3;
+            }
+            if (posY <= 0) {
+                posY = 0; velY = Math.abs(velY) * (0.9 + Math.random() * 0.3);
+                velX += (Math.random() - 0.5) * 2; bounced = true; rotVel += (Math.random() - 0.5) * 0.3;
+            }
+            if (posY + H >= vh) {
+                posY = vh - H; velY = -Math.abs(velY) * (0.9 + Math.random() * 0.3);
+                velX += (Math.random() - 0.5) * 2; bounced = true; rotVel += (Math.random() - 0.5) * 0.3;
+            }
+
+            if (bounced) {
+                bounceCount++;
+                updateHud();
+                if (bounceCount % 5 === 0) showTaunt();
+                flashWall();
+                win.classList.remove('bouncing');
+                void win.offsetWidth;
+                win.classList.add('bouncing');
+                const angle = Math.atan2(velY, velX);
+                for (let i = 0; i < 3; i++) {
+                    addSpeedLine(
+                        posX + W / 2 + (Math.random() - 0.5) * W,
+                        posY + H / 2 + (Math.random() - 0.5) * H,
+                        angle + Math.PI
+                    );
+                }
+            }
+
+            rotVel *= 0.95;
+            rotAngle += rotVel * dt;
+            rotAngle *= 0.98;
+
+            win.style.left = posX + 'px';
+            win.style.top = posY + 'px';
+            win.style.transform = `rotate(${rotAngle}deg)`;
+
+            requestAnimationFrame(animate);
+        }
+
+        // ランダム方向転換
+        setInterval(() => {
+            if (gamePhase === PHASE_PLAYING) {
+                velX += (Math.random() - 0.5) * 1.5;
+                velY += (Math.random() - 0.5) * 1.5;
+            }
+        }, 3000);
+
+        // 煽り更新
+        setInterval(() => {
+            if (gamePhase === PHASE_PLAYING) showTaunt();
+        }, 5000);
+    </script>
+
+</body>
+
+</html>
